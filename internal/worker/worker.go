@@ -14,4 +14,10 @@ type Worker struct {
 	queue *queue.RedisQueue
 	maxRetries int 
 }
-func NewWorker 
+func NewWorker(q *queue.RedisQueue, maxRetries int) *Worker {
+	return &Worker {
+		queue : q , 
+		maxRetries: maxRetries
+	}
+}
+func (w *Worker) Start
