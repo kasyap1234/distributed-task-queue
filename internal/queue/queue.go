@@ -6,7 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/google/uuid"
+	
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -14,27 +15,46 @@ import (
 
 type RedisQueue struct {
 	client *redis.Client
+	queueName string 
 }
 var ErrQueueEmpty = errors.New("queue is empty")
 
-func NewRedisQueue(addr string) *RedisQueue {
+func NewRedisQueue(addr string,queueName string) *RedisQueue {
 	client := redis.NewClient(&redis.Options{
 		Addr: addr,
 	})
-	return &RedisQueue{client: client}
+	return &RedisQueue{client: client,queueName: queueName}
+
 
 }
 
-func (q *RedisQueue) Enqueue(job *models.Job) error {
-	jobData,err :=json.Marshal(job); 
-	if err !=nil {
-		return err; 
-	}
-	score :=float64(time.Now().Add(time.Until(job.DelayUntil)).UnixNano())
-    return q.client.ZAdd(context.Background(),"job_queue",redis.Z{
+func (q *RedisQueue) Enqueue(ctx context.Context,jobType string,payload interface {},opts ...JobOption)(*models.Job,error) {
+job := &models.Job {
+	ID : uuid.New().String(), 
+	Type: jobType, 
+	Status : "pending", 
+	CreatedAt : time.Now(), 
+	MaxRetries : 3 , 
+	Priority : 1, 
+}
+for _,opt := range opts {
+	opt(job); 
+}
+payloadBytes ,err :=json.Marshal(payload);
+if err !=nil {
+	return nil,err; 
+}
+job.Payload=payloadBytes; 
+jobBytes,err :=json.Marshal(job); 
+if err !=nil {
+	return nil, err ; 
+}
+score :=float64(time.Now().Add(time.Until(job.DelayUntil)).UnixNano())
+ q.client.ZAdd(context.Background(),q.queueName,redis.Z{
 		Score: score, 
-		Member: jobData, 
+		Member: jobBytes,
 	}).Err()
+	return 
 }
 func (q *RedisQueue) Dequeue()(*models.Job,error){
 	result,err := q.client.ZRangeByScore(context.Background(),"job_queue",&redis.ZRangeBy{

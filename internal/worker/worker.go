@@ -5,26 +5,30 @@ import (
 	"distributed-task-queue/internal/logger"
 	"distributed-task-queue/internal/models"
 	"distributed-task-queue/internal/queue"
-	"fmt"
-	"log"
+	
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 )
+type JobHandlers interface {
+	
+}
 type Worker struct {
 	queue *queue.RedisQueue
 	maxRetries int
 	rateLimit int 
 	numWorkers int 
-
+	jobHandlers map[string]JobHandlers
 }
 
-func NewWorker(q *queue.RedisQueue,maxRetries,rateLimit int) *Worker {
+func NewWorker(q *queue.RedisQueue,maxRetries int ,rateLimit int ,numWorkers int) *Worker {
 	return &Worker{
 		queue: q,
 		maxRetries: maxRetries,
 		rateLimit: rateLimit,
+		numWorkers: numWorkers,
+		jobHandlers:make(map[string]JobHandlers)
 	}
 }
 func (w *Worker) Start (ctx context.Context,wg *sync.WaitGroup){
