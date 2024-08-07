@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	
 
 	"github.com/spf13/viper"
 )
@@ -14,10 +14,10 @@ type Config struct {
 
 }
 func LoadConfig() *Config{
-	viper.SetDefault("RedisAddr", "localhost:6379")
+	viper.SetDefault("RedisAddr", "127.0.0.1:6379")
 	viper.SetDefault("MaxRetries", 5)
 	viper.SetDefault("WorkerCount", 10)
-	viper.SetDefault("APIAddr", "localhost:8080")
+	viper.SetDefault("APIAddr", "127.0.0.1:8080")
 	viper.SetDefault("WorkerTimeout", 10)
 	viper.AutomaticEnv()
 	config :=&Config{

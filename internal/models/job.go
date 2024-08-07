@@ -1,18 +1,35 @@
-package models
+package models 
 
-import "time"
+import (
+    "encoding/json"
+    "time"
+)
 
 type Job struct {
-	ID         string `json:"id,omitempty"`
-	Status     string `json:"status,omitempty"`
-	Type  	  string `json:"type,omitempty"`
-	Payload    interface {}
-	Retries    int    `json:"retries,omitempty"`
-	MaxRetries int    `json:"maxRetries,omitempty"`
-	CreatedAt  time.Time `json:"createdAt,omitempty"`
-	Priority   int    `json:"priority,omitempty"`
-	DelayUntil time.Time `json:"delayUntil,omitempty"`
-	RateLimit int    `json:"rateLimit,omitempty"`
-	Dependencies []string `json:"dependencies,omitempty"`
-	
+    ID        string          `json:"id"`
+    Type      string          `json:"type"`
+    Payload   json.RawMessage `json:"payload"`
+    Status    string          `json:"status"`
+    CreatedAt time.Time       `json:"created_at"`
+    UpdatedAt time.Time       `json:"updated_at"`
 }
+
+type EmailJob struct {
+    To      string `json:"to"`
+    Subject string `json:"subject"`
+    Body    string `json:"body"`
+}
+
+type ImageResizeJob struct {
+    InputPath  string `json:"input_path"`
+    OutputPath string `json:"output_path"`
+    Width      int    `json:"width"`
+    Height     int    `json:"height"`
+}
+
+type DataProcessingJob struct {
+    Data []int `json:"data"`
+}
+
+
+

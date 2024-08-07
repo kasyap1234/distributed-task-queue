@@ -3,8 +3,11 @@ module distributed-task-queue
 go 1.22.1
 
 require (
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.4.0
-	github.com/redis/go-redis/v9 v9.6.1
+	github.com/lib/pq v1.10.9
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/viper v1.19.0
 	go.uber.org/zap v1.27.0
 )
