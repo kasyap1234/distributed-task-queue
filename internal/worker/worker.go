@@ -1,68 +1,64 @@
-package worker
+package worker 
+
 
 import (
 	"context"
-	"distributed-task-queue/internal/logger"
-	"distributed-task-queue/internal/models"
 	"distributed-task-queue/internal/queue"
-	
-	"sync"
-	"time"
-
-	"go.uber.org/zap"
+	"distributed-task-queue/internal/models"
+	"log"
 )
-type JobHandlers interface {
-	
-}
+
 type Worker struct {
-	queue *queue.RedisQueue
-	maxRetries int
-	rateLimit int 
-	numWorkers int 
-	jobHandlers map[string]JobHandlers
+    queue       queue.Queue
+    handlers    map[string]JobHandler
+    concurrency int
 }
 
-func NewWorker(q *queue.RedisQueue,maxRetries int ,rateLimit int ,numWorkers int) *Worker {
-	return &Worker{
-		queue: q,
-		maxRetries: maxRetries,
-		rateLimit: rateLimit,
-		numWorkers: numWorkers,
-		jobHandlers:make(map[string]JobHandlers)
-	}
-}
-func (w *Worker) Start (ctx context.Context,wg *sync.WaitGroup){
-	defer wg.Done()
-	for  i :=0; i< w.numWorkers ; i++ {
-		wg.Add(1); 
-		go w.runWorker(ctx,wg)
-	}
-}
-func (w *Worker) runWorker (ctx context.Context,wg *sync.WaitGroup){
-	defer wg.Done()
-	rateLimiter :=time.Tick(time.Second /time.Duration(w.rateLimit))
-	for {
-		select {
-		case <-ctx.Done():
-			logger.Logger.Info("Worker shutting Down"); 
-			return 
-		case <-rateLimiter:
-			job,err :=w.queue.Dequeue(); 
+type JobHandler func(context.Context, * models.Job) error
 
-			// if queue is empty then wait for a second 
-			if err ==queue.ErrQueueEmpty{
-				time.Sleep(time.Second); 
-				continue
-			}
-			if err!=nil {
-				logger.Logger.Error("Error dequeueing job",zap.Error())
-				time.Sleep(time.Second); 
-				continue 
+func NewWorker(queue queue.Queue, concurrency int) *Worker {
+    return &Worker{
+        queue:       queue,
+        handlers:    make(map[string]JobHandler),
+        concurrency: concurrency,
+    }
+}
 
-			}
-			if err :=w.processJob(job); err !=nil {
-				
-			}
-		}
-	}
+func (w *Worker) RegisterHandler(jobType string, handler JobHandler) {
+    w.handlers[jobType] = handler
+}
+
+func (w *Worker) Start(ctx context.Context) {
+    for i := 0; i < w.concurrency; i++ {
+        go w.work(ctx)
+    }
+}
+
+func (w *Worker) work(ctx context.Context) {
+    for {
+        select {
+        case <-ctx.Done():
+            return
+        default:
+            job, err := w.queue.Dequeue(ctx)
+            if err != nil {
+                log.Printf("Error dequeuing job: %v", err)
+                continue
+            }
+            if handler, ok := w.handlers[job.Type]; ok {
+                job.Status = "processing"
+                w.queue.UpdateJob(ctx, job)
+                err = handler(ctx, job)
+                if err != nil {
+                    job.Status = "failed"
+                    log.Printf("Error processing job %s: %v", job.ID, err)
+                } else {
+                    job.Status = "completed"
+                }
+                w.queue.UpdateJob(ctx, job)
+            } else {
+                log.Printf("No handler for job type: %s", job.Type)
+            }
+        }
+    }
 }
